@@ -13,30 +13,22 @@ import {
   hasTags,
 } from "./unsplash/utils";
 import { generateHash } from "./utils/utils";
+import { mapWithConcurrency } from "./utils/concurrency";
+import { exchangeCodeForToken, issueOauthState } from "./auth/auth";
+import { env } from "./utils/env";
 
 const app = new Elysia();
 const sessions = new Map<string, { accessToken: string }>();
-
-const UNSPLASH_ACCESS_KEY = Bun.env.UNSPLASH_ACCESS_KEY!;
-const UNSPLASH_SECRET_KEY = Bun.env.UNSPLASH_SECRET_KEY!;
-const UNSPLASH_REDIRECT_URI = Bun.env.UNSPLASH_REDIRECT_URI!;
-const ENVIRONMENT = Bun.env.ENVIRONMENT!;
 
 app
   .get(
     "/login",
     ({ redirect, cookie: { oauth_state } }) => {
-      const state = generateHash(16);
-      oauth_state.set({
-        value: state,
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-      });
+      const state = issueOauthState(oauth_state);
 
       const params = new URLSearchParams({
-        client_id: UNSPLASH_ACCESS_KEY,
-        redirect_uri: UNSPLASH_REDIRECT_URI,
+        client_id: env.unsplashAccessKey,
+        redirect_uri: env.unsplashRedirectUri,
         response_type: "code",
         scope: "public read_user write_photos",
         state,
@@ -63,53 +55,30 @@ app
         return { success: false, error: "Invalid OAuth state" };
       }
 
-      const code = query.code;
+      try {
+        const sessionId = generateHash(32);
+        const token = await exchangeCodeForToken(query.code);
+        sessions.set(sessionId, { accessToken: token });
 
-      const body = JSON.stringify({
-        client_id: UNSPLASH_ACCESS_KEY,
-        client_secret: UNSPLASH_SECRET_KEY,
-        redirect_uri: UNSPLASH_REDIRECT_URI,
-        code,
-        grant_type: "authorization_code",
-      });
+        session.set({
+          value: sessionId,
+          httpOnly: true,
+          secure: env.isProduction,
+          sameSite: "lax",
+          path: "/",
+        });
 
-      const response = await fetch("https://unsplash.com/oauth/token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body,
-      });
-
-      if (!response.ok) {
+        return {
+          success: true,
+        };
+      } catch (error) {
         set.status = 400;
         return {
           success: false,
-          error: await response.text(),
+          error:
+            error instanceof Error ? error.message : "OAuth exchange failed",
         };
       }
-
-      const auth = (await response.json()) as {
-        access_token: string;
-        token_type: string;
-        scope: string;
-        created_at: number;
-      };
-
-      const sessionId = generateHash(32);
-      sessions.set(sessionId, { accessToken: auth.access_token });
-
-      session.set({
-        value: sessionId,
-        httpOnly: true,
-        secure: ENVIRONMENT === "prod",
-        sameSite: "lax",
-        path: "/",
-      });
-
-      return {
-        success: true,
-      };
     },
     {
       query: t.Object({
@@ -122,6 +91,7 @@ app
       }),
     },
   )
+  // todo: separate into get photos and generate metadata
   .post(
     "/generate",
     async ({ body, cookie: { session }, set }) => {
@@ -194,34 +164,3 @@ app
     },
   )
   .listen(3001);
-
-async function mapWithConcurrency<TInput, TOutput>(
-  items: TInput[],
-  concurrency: number,
-  mapper: (item: TInput, index: number) => Promise<TOutput>,
-) {
-  const results = new Array<TOutput>(items.length);
-  let nextIndex = 0;
-
-  async function worker() {
-    while (nextIndex < items.length) {
-      const currentIndex = nextIndex;
-      const currentItem = items[currentIndex];
-      nextIndex += 1;
-
-      if (currentItem === undefined) {
-        continue;
-      }
-
-      results[currentIndex] = await mapper(currentItem, currentIndex);
-    }
-  }
-
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length || 1) },
-    () => worker(),
-  );
-
-  await Promise.all(workers);
-  return results;
-}
