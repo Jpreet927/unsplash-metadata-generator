@@ -1,11 +1,12 @@
+import OpenAI from "openai";
 import type { OpenAiMetadata } from "./types";
 import type { UnsplashPhoto } from "../unsplash/types";
-import { extractResponseText, safeJsonParse } from "./utils";
+import { safeJsonParse } from "./utils";
 import { UPDATE_TAGS_DESCRIPTION } from "./prompts";
+import { env } from "../utils/env";
 
-const OPENAI_API_BASE_URL = "https://api.openai.com/v1";
 const MODEL = "gpt-5.4";
-const openAiApiKey = Bun.env.OPENAI_API_KEY;
+const client = new OpenAI({ apiKey: env.openAiApiKey });
 
 export async function generateMetadata(
   photo: UnsplashPhoto,
@@ -17,39 +18,27 @@ export async function generateMetadata(
     throw new Error(`Photo ${photo.id} has no usable image URL.`);
   }
 
-  const response = await fetch(`${OPENAI_API_BASE_URL}/responses`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${openAiApiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: UPDATE_TAGS_DESCRIPTION,
-            },
-            {
-              type: "input_image",
-              image_url: imageUrl,
-            },
-          ],
-        },
-      ],
-    }),
+  const response = await client.responses.create({
+    model: MODEL,
+    input: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: UPDATE_TAGS_DESCRIPTION,
+          },
+          {
+            type: "input_image",
+            image_url: imageUrl,
+            detail: "auto",
+          },
+        ],
+      },
+    ],
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenAI request failed: ${response.status} ${errorText}`);
-  }
-
-  const payload = await response.json();
-  const outputText = extractResponseText(payload);
+  const outputText = response.output_text;
 
   if (!outputText) {
     throw new Error(
