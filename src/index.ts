@@ -20,6 +20,26 @@ import { env } from "./utils/env";
 const app = new Elysia();
 const sessions = new Map<string, { accessToken: string }>();
 
+const authenticated = new Elysia()
+  .guard({
+    cookie: t.Cookie({
+      session: t.Optional(t.String()),
+    }),
+  })
+  .resolve(({ cookie: { session }, status }) => {
+    const sessionId = session.value;
+    const auth = sessionId ? sessions.get(sessionId) : undefined;
+
+    if (!sessionId || !auth) {
+      return status(401, {
+        success: false,
+        error: "Invalid authorization.",
+      });
+    }
+
+    return { auth };
+  });
+
 app
   .get(
     "/login",
@@ -91,76 +111,101 @@ app
       }),
     },
   )
-  // todo: separate into get photos and generate metadata
-  .post(
-    "/generate",
-    async ({ body, cookie: { session }, set }) => {
-      const sessionId = session.value;
-      const auth = sessionId ? sessions.get(sessionId) : undefined;
+  .use(
+    authenticated
+      .get(
+        "/photos",
+        async ({ body, auth }) => {
+          const username = await resolveUsername(auth.accessToken);
 
-      if (!sessionId || !auth) {
-        set.status = 401;
-        return { success: false, error: "Invalid authorization." };
-      }
+          const recentPhotos = await listRecentPhotos(username, body.count);
+          const detailedPhotos = await mapWithConcurrency(
+            recentPhotos,
+            3,
+            async (photo) => getPhoto(photo.id),
+          );
+          const candidates = detailedPhotos.filter(needsMetadata);
 
-      const username = await resolveUsername(auth.accessToken);
+          if (candidates.length === 0) {
+            return {
+              success: true,
+              message: "No photos need metadata updates.",
+            };
+          }
 
-      const recentPhotos = await listRecentPhotos(username, body.count);
-      const detailedPhotos = await mapWithConcurrency(
-        recentPhotos,
-        3,
-        async (photo) => getPhoto(photo.id),
-      );
-      const candidates = detailedPhotos.filter(needsMetadata);
+          return { success: true, photos: candidates };
+        },
+        {
+          body: t.Object({
+            count: t.Number({ minimum: 1, maximum: 10, default: 5 }),
+            dryRun: t.Boolean({ default: false }),
+          }),
+          cookie: t.Cookie({
+            session: t.Optional(t.String()),
+          }),
+        },
+      )
+      .post(
+        "/generate",
+        async ({ body, auth }) => {
+          let updatedCount = 0;
 
-      if (candidates.length === 0) {
-        return { success: true, message: "No photos need metadata updates." };
-      }
+          for (const photo of body.images) {
+            const metadata = await generateMetadata(photo);
 
-      console.log(
-        `Found ${candidates.length} candidate photo(s) missing a description or tags out of ${detailedPhotos.length} inspected.`,
-      );
+            const nextDescription = hasMeaningfulText(photo.description)
+              ? photo.description!.trim()
+              : metadata.description;
+            const nextTags = hasTags(photo)
+              ? getExistingTags(photo)
+              : metadata.tags;
 
-      let updatedCount = 0;
+            updatedCount++;
 
-      for (const photo of candidates) {
-        const metadata = await generateMetadata(photo);
+            if (body.dryRun) {
+              console.log("Dry run enabled, skipping Unsplash update.");
+              continue;
+            }
 
-        const nextDescription = hasMeaningfulText(photo.description)
-          ? photo.description!.trim()
-          : metadata.description;
-        const nextTags = hasTags(photo)
-          ? getExistingTags(photo)
-          : metadata.tags;
+            await updatePhoto(photo.id, {
+              bearerToken: auth.accessToken,
+              description: nextDescription,
+              tags: nextTags,
+            });
+          }
 
-        updatedCount++;
+          const message = body.dryRun
+            ? `Dry run completed. Would have updated ${updatedCount} photo(s).`
+            : `Updated ${updatedCount} photo(s) in Unsplash.`;
 
-        if (body.dryRun) {
-          console.log("Dry run enabled, skipping Unsplash update.");
-          continue;
-        }
-
-        await updatePhoto(photo.id, {
-          bearerToken: auth.accessToken,
-          description: nextDescription,
-          tags: nextTags,
-        });
-      }
-
-      const message = body.dryRun
-        ? `Dry run completed. Would have updated ${updatedCount} photo(s).`
-        : `Updated ${updatedCount} photo(s) in Unsplash.`;
-
-      return { success: true, message };
-    },
-    {
-      body: t.Object({
-        count: t.Number({ minimum: 1, maximum: 10, default: 5 }),
-        dryRun: t.Boolean({ default: false }),
-      }),
-      cookie: t.Cookie({
-        session: t.Optional(t.String()),
-      }),
-    },
+          return { success: true, message };
+        },
+        {
+          body: t.Object({
+            images: t.Array(
+              t.Object({
+                id: t.String(),
+                description: t.String(),
+                tags: t.Array(
+                  t.Object({
+                    title: t.String(),
+                  }),
+                ),
+                urls: t.Object({
+                  raw: t.String(),
+                  full: t.String(),
+                  regular: t.String(),
+                  small: t.String(),
+                  thumb: t.String(),
+                }),
+              }),
+            ),
+            dryRun: t.Boolean({ default: false }),
+          }),
+          cookie: t.Cookie({
+            session: t.Optional(t.String()),
+          }),
+        },
+      ),
   )
   .listen(3001);

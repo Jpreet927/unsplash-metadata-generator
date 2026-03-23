@@ -5,16 +5,16 @@ export type UnsplashListPhoto = {
 export type UnsplashPhoto = {
   id: string;
   description: string | null;
-  alt_description: string | null;
-  tags?: Array<{ title?: string | null }> | null;
+  tags: Array<{ title?: string | null }>;
   urls: {
-    regular?: string;
-    full?: string;
-    raw?: string;
-    small?: string;
+    raw: string;
+    full: string;
+    regular: string;
+    small: string;
+    thumb: string;
   };
-  user: {
+  user?: {
     username: string;
-    name?: string;
+    name: string;
   };
 };
