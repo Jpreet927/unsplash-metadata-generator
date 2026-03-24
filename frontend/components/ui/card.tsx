@@ -1,10 +1,7 @@
-import * as React from "react";
+import type { HTMLAttributes } from "react";
 import clsx from "classnames";
 
-export function Card({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={clsx(
@@ -19,7 +16,7 @@ export function Card({
 export function CardTitle({
   className,
   ...props
-}: React.HTMLAttributes<HTMLHeadingElement>) {
+}: HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2
       className={clsx("text-xl font-semibold tracking-tight", className)}
@@ -31,6 +28,6 @@ export function CardTitle({
 export function CardDescription({
   className,
   ...props
-}: React.HTMLAttributes<HTMLParagraphElement>) {
+}: HTMLAttributes<HTMLParagraphElement>) {
   return <p className={clsx("text-sm text-muted", className)} {...props} />;
 }

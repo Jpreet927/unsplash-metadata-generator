@@ -1,10 +1,10 @@
-import * as React from "react";
+import type { HTMLAttributes } from "react";
 import clsx from "classnames";
 
 export function Badge({
   className,
   ...props
-}: React.HTMLAttributes<HTMLSpanElement>) {
+}: HTMLAttributes<HTMLSpanElement>) {
   return (
     <span
       className={clsx(

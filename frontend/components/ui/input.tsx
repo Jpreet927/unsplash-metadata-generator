@@ -1,10 +1,10 @@
-import * as React from "react";
+import type { InputHTMLAttributes } from "react";
 import clsx from "classnames";
 
 export function Input({
   className,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
+}: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       className={clsx(
