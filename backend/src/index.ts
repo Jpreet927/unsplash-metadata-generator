@@ -6,12 +6,6 @@ import {
   resolveUsername,
   updatePhoto,
 } from "./unsplash/client";
-import {
-  needsMetadata,
-  getExistingTags,
-  hasMeaningfulText,
-  hasTags,
-} from "./unsplash/utils";
 import { generateHash } from "./utils/utils";
 import { mapWithConcurrency } from "./utils/concurrency";
 import { exchangeCodeForToken, issueOauthState } from "./auth/auth";
@@ -26,7 +20,7 @@ const authenticated = new Elysia()
       session: t.Optional(t.String()),
     }),
   })
-  .resolve(({ cookie: { session }, status }) => {
+  .derive(({ cookie: { session }, status }) => {
     const sessionId = session.value;
     const auth = sessionId ? sessions.get(sessionId) : undefined;
 
@@ -124,16 +118,15 @@ app
             3,
             async (photo) => getPhoto(photo.id),
           );
-          const candidates = detailedPhotos.filter(needsMetadata);
 
-          if (candidates.length === 0) {
+          if (detailedPhotos.length === 0) {
             return {
               success: true,
               message: "No photos need metadata updates.",
             };
           }
 
-          return { success: true, photos: candidates };
+          return { success: true, photos: detailedPhotos };
         },
         {
           body: t.Object({
@@ -147,63 +140,55 @@ app
       )
       .post(
         "/generate",
-        async ({ body, auth }) => {
-          let updatedCount = 0;
-
-          for (const photo of body.images) {
-            const metadata = await generateMetadata(photo);
-
-            const nextDescription = hasMeaningfulText(photo.description)
-              ? photo.description!.trim()
-              : metadata.description;
-            const nextTags = hasTags(photo)
-              ? getExistingTags(photo)
-              : metadata.tags;
-
-            updatedCount++;
-
-            if (body.dryRun) {
-              console.log("Dry run enabled, skipping Unsplash update.");
-              continue;
-            }
-
-            await updatePhoto(photo.id, {
-              bearerToken: auth.accessToken,
-              description: nextDescription,
-              tags: nextTags,
-            });
-          }
-
-          const message = body.dryRun
-            ? `Dry run completed. Would have updated ${updatedCount} photo(s).`
-            : `Updated ${updatedCount} photo(s) in Unsplash.`;
-
-          return { success: true, message };
+        async ({ body }) => {
+          const metadata = await generateMetadata(body);
+          return { success: true, metadata };
         },
         {
           body: t.Object({
-            images: t.Array(
+            id: t.String(),
+            description: t.String(),
+            tags: t.Array(
               t.Object({
-                id: t.String(),
-                description: t.String(),
-                tags: t.Array(
-                  t.Object({
-                    title: t.String(),
-                  }),
-                ),
-                urls: t.Object({
-                  raw: t.String(),
-                  full: t.String(),
-                  regular: t.String(),
-                  small: t.String(),
-                  thumb: t.String(),
-                }),
+                title: t.String(),
               }),
             ),
-            dryRun: t.Boolean({ default: false }),
+            urls: t.Object({
+              raw: t.String(),
+              full: t.String(),
+              regular: t.String(),
+              small: t.String(),
+              thumb: t.String(),
+            }),
           }),
           cookie: t.Cookie({
             session: t.Optional(t.String()),
+          }),
+        },
+      )
+      .post(
+        "/update",
+        async ({ body, auth, set }) => {
+          try {
+            const { imageId, description, tags } = body;
+            updatePhoto(auth.accessToken, imageId, description, tags);
+
+            return { success: true };
+          } catch (error) {
+            set.status = 400;
+
+            return {
+              success: false,
+              error:
+                error instanceof Error ? error.message : "Image update failed",
+            };
+          }
+        },
+        {
+          body: t.Object({
+            imageId: t.String(),
+            tags: t.Array(t.String()),
+            description: t.String(),
           }),
         },
       ),

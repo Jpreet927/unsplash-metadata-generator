@@ -6,7 +6,7 @@
       "name": "unsplash-uploader",
       "dependencies": {
         "elysia": "^1.4.28",
-        "openai": "^6.8.1",
+        "openai": "^6.32.0",
       },
       "devDependencies": {
         "@types/bun": "latest",

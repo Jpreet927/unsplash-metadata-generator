@@ -81,12 +81,10 @@ export async function getPhoto(id: string) {
 }
 
 export async function updatePhoto(
-  id: string,
-  options: {
-    bearerToken: string;
-    description: string;
-    tags: string[];
-  },
+  bearerToken: string,
+  imageId: string,
+  description: string,
+  tags: string[],
 ) {
   const attempts: Array<{
     body: string;
@@ -94,21 +92,21 @@ export async function updatePhoto(
   }> = [
     {
       body: JSON.stringify({
-        description: options.description,
-        tags: options.tags,
+        description,
+        tags,
       }),
       headers: {
         "Content-Type": "application/json",
       },
     },
     {
-      body: createTagsArrayFormBody(options.description, options.tags),
+      body: createTagsArrayFormBody(description, tags),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
     },
     {
-      body: createCommaSeparatedTagsFormBody(options.description, options.tags),
+      body: createCommaSeparatedTagsFormBody(description, tags),
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
@@ -119,11 +117,11 @@ export async function updatePhoto(
 
   for (const attempt of attempts) {
     const response = await fetch(
-      `${UNSPLASH_API_BASE_URL}/photos/${encodeURIComponent(id)}`,
+      `${UNSPLASH_API_BASE_URL}/photos/${encodeURIComponent(imageId)}`,
       {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${options.bearerToken}`,
+          Authorization: `Bearer ${bearerToken}`,
           "Accept-Version": "v1",
           ...attempt.headers,
         },
@@ -138,5 +136,5 @@ export async function updatePhoto(
     lastError = await response.text();
   }
 
-  throw new Error(`Unsplash update failed for photo ${id}: ${lastError}`);
+  throw new Error(`Unsplash update failed for photo ${imageId}: ${lastError}`);
 }

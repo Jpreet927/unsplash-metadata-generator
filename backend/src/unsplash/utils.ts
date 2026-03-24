@@ -21,26 +21,10 @@ export function createCommaSeparatedTagsFormBody(
   return params.toString();
 }
 
-export function needsMetadata(photo: UnsplashPhoto) {
-  return !hasMeaningfulText(photo.description) || !hasTags(photo);
-}
-
-export function hasMeaningfulText(value: string | null | undefined) {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-export function hasTags(photo: UnsplashPhoto) {
-  return getExistingTags(photo).length > 0;
-}
-
 export function getExistingTags(photo: UnsplashPhoto) {
   return (photo.tags ?? [])
     .map((tag) => tag.title?.trim())
     .filter((tag): tag is string => Boolean(tag));
-}
-
-export function formatNullable(value: string | null) {
-  return hasMeaningfulText(value) ? value!.trim() : "(missing)";
 }
 
 export function formatTags(tags: string[]) {
