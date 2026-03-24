@@ -60,13 +60,12 @@ app
   )
   .get(
     "/callback",
-    async ({ query, cookie: { oauth_state, session }, set }) => {
+    async ({ query, cookie: { oauth_state, session }, redirect }) => {
       const storedState = oauth_state.value;
       const returnedState = query.state;
 
       if (!returnedState || !storedState || returnedState !== storedState) {
-        set.status = 400;
-        return { success: false, error: "Invalid OAuth state" };
+        return redirect(`${env.frontendUrl}/?auth=error&reason=state`);
       }
 
       try {
@@ -82,16 +81,13 @@ app
           path: "/",
         });
 
-        return {
-          success: true,
-        };
+        return redirect(`${env.frontendUrl}/?auth=success`);
       } catch (error) {
-        set.status = 400;
-        return {
-          success: false,
-          error:
-            error instanceof Error ? error.message : "OAuth exchange failed",
-        };
+        const message =
+          error instanceof Error ? error.message : "OAuth exchange failed";
+        return redirect(
+          `${env.frontendUrl}/login?auth=error&reason=${encodeURIComponent(message)}`,
+        );
       }
     },
     {
@@ -107,7 +103,10 @@ app
   )
   .use(
     authenticated
-      .get(
+      .get("/session", () => {
+        return { success: true, authenticated: true };
+      })
+      .post(
         "/photos",
         async ({ body, auth }) => {
           const username = await resolveUsername(auth.accessToken);
@@ -130,8 +129,7 @@ app
         },
         {
           body: t.Object({
-            count: t.Number({ minimum: 1, maximum: 10, default: 5 }),
-            dryRun: t.Boolean({ default: false }),
+            count: t.Number({ minimum: 1, maximum: 20, default: 5 }),
           }),
           cookie: t.Cookie({
             session: t.Optional(t.String()),

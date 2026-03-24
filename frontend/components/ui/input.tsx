@@ -1,0 +1,17 @@
+import * as React from "react";
+import clsx from "classnames";
+
+export function Input({
+  className,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      className={clsx(
+        "h-12 w-full rounded-2xl border border-border bg-white/80 px-4 text-base text-foreground outline-none transition placeholder:text-muted focus:border-accent focus:ring-4 focus:ring-ring",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
