@@ -94,28 +94,16 @@ export function Dashboard() {
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-12 md:px-10">
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="relative overflow-hidden">
-          <div className="absolute -right-12 -top-16 h-40 w-40 rounded-full bg-accent/12 blur-3xl" />
-          <div className="absolute -bottom-12 left-8 h-32 w-32 rounded-full bg-orange-200/50 blur-3xl" />
-          <Badge className="mb-5 bg-white/90">Unsplash Workspace</Badge>
+          <Badge className="mb-5">Unsplash Workspace</Badge>
           <CardTitle className="max-w-xl text-4xl leading-tight md:text-5xl">
             Sign in, pull your recent photos, and review their existing
             metadata.
           </CardTitle>
           <CardDescription className="mt-4 max-w-2xl text-base leading-7">
-            Your session is already active. Retrieve your latest photos and
-            review the descriptions and tags that already exist on each image.
+            Expand each photo to edit its description and tags. New descriptions
+            and tags can be generated based on the photo's content. Each photo
+            must have a maximum of 20 tags.
           </CardDescription>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <Badge className="bg-white/90">Authenticated</Badge>
-            <Badge className="bg-transparent text-muted">
-              Unsplash session active
-            </Badge>
-          </div>
-          {authBanner ? (
-            <p className="mt-5 text-sm font-medium text-foreground">
-              {authBanner}
-            </p>
-          ) : null}
         </Card>
 
         <Card>
@@ -164,7 +152,7 @@ export function Dashboard() {
               </div>
               <div className="space-y-4 p-5">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.22em] text-muted">
+                  <p className="text-xs uppercase tracking-widest text-muted">
                     Photo {photo.id}
                   </p>
                   <p className="mt-2 text-sm leading-6 text-foreground">
@@ -172,10 +160,15 @@ export function Dashboard() {
                       "No description on this photo yet."}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1">
                   {tags.length > 0 ? (
                     tags.map((tag) => (
-                      <Badge key={`${photo.id}-${tag}`}>{tag}</Badge>
+                      <Badge
+                        key={`${photo.id}-${tag}`}
+                        className="rounded-lg py-2"
+                      >
+                        {tag}
+                      </Badge>
                     ))
                   ) : (
                     <Badge>No tags yet</Badge>

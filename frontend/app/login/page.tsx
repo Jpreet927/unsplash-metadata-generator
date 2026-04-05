@@ -17,14 +17,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const resolvedSearchParams = await searchParams;
   const authError =
     resolvedSearchParams?.auth === "error"
-      ? resolvedSearchParams.reason ?? "Unsplash sign-in failed."
+      ? (resolvedSearchParams.reason ?? "Unsplash sign-in failed.")
       : null;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl items-center px-6 py-12 md:px-10">
       <Card className="relative w-full overflow-hidden p-8 md:p-12">
-        <div className="absolute -left-10 top-10 h-32 w-32 rounded-full bg-orange-200/60 blur-3xl" />
-        <div className="absolute bottom-0 right-0 h-44 w-44 rounded-full bg-accent/12 blur-3xl" />
         <p className="text-xs uppercase tracking-[0.28em] text-muted">
           Unsplash Metadata Generator
         </p>
