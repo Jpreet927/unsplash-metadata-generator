@@ -3,12 +3,13 @@
 import Image from "next/image";
 import { useMemo, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/core/badge";
+import { Button } from "@/components/core/button";
+import { Card, CardDescription, CardTitle } from "@/components/core/card";
+import { Input } from "@/components/core/input";
+import { Label } from "@/components/core/label";
 import type { UnsplashPhoto } from "@/lib/types";
+import MetadataForm from "./metadataform";
 
 type PhotoSuccess = {
   success: true;
@@ -30,29 +31,16 @@ function getTags(photo: UnsplashPhoto) {
 }
 
 export function Dashboard() {
-  const searchParams = useSearchParams();
   const [count, setCount] = useState("5");
   const [photos, setPhotos] = useState<UnsplashPhoto[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const authState = searchParams.get("auth");
-  const authReason = searchParams.get("reason");
-
-  const authBanner = useMemo(() => {
-    if (authState === "success") {
-      return "Connected to Unsplash. You can retrieve your recent photos now.";
-    }
-
-    if (authState === "error") {
-      return authReason
-        ? `Unsplash sign-in failed: ${authReason}`
-        : "Unsplash sign-in failed.";
-    }
-
-    return null;
-  }, [authReason, authState]);
+  const [selectedPhoto, setSelectedPhoto] = useState<UnsplashPhoto | null>(
+    null,
+  );
+  const [formVisible, setFormVisible] = useState<boolean>(false);
 
   async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -92,6 +80,14 @@ export function Dashboard() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-12 md:px-10">
+      {formVisible && selectedPhoto && (
+        <div className="absolute top-0 left-0 z-50 h-screen w-screen flex justify-center items-center bg-black/50 backdrop-blur-xl overflow-hidden">
+          <MetadataForm
+            photo={selectedPhoto}
+            onClose={() => setFormVisible(false)}
+          />
+        </div>
+      )}
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="relative overflow-hidden">
           <Badge className="mb-5">Unsplash Workspace</Badge>
@@ -140,7 +136,14 @@ export function Dashboard() {
           const tags = getTags(photo);
 
           return (
-            <Card className="overflow-hidden p-0" key={photo.id}>
+            <Card
+              className="overflow-hidden p-0 cursor-pointer"
+              key={photo.id}
+              onClick={() => {
+                setSelectedPhoto(photo);
+                setFormVisible(true);
+              }}
+            >
               <div className="relative aspect-4/3 w-full overflow-hidden">
                 <Image
                   alt={photo.description ?? `Unsplash photo ${photo.id}`}

@@ -1,4 +1,4 @@
-import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardTitle } from "@/components/core/card";
 import { hasBackendSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 
