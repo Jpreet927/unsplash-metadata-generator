@@ -81,7 +81,7 @@ export function Dashboard() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-6 py-12 md:px-10">
       {formVisible && selectedPhoto && (
-        <div className="absolute top-0 left-0 z-50 h-screen w-screen flex justify-center items-center bg-black/50 backdrop-blur-xl overflow-hidden">
+        <div className="fixed top-0 left-0 z-50 h-screen w-screen flex justify-center items-center bg-black/50 backdrop-blur-xl">
           <MetadataForm
             photo={selectedPhoto}
             onClose={() => setFormVisible(false)}
